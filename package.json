@@ -6,9 +6,9 @@
     "start": "webpack serve --config webpack.dev.js",
     "build": "webpack --config webpack.prod.js",
     "lint": "eslint . --fix",
-    "test": "jest --testPathPattern=./src/",
+    "test": "jest --testPathPatterns=./src/",
     "coverage": "jest --coverage",
-    "e2e": "jest --testPathPattern=./e2e/ --runInBand",
+    "e2e": "jest --testPathPatterns=./e2e/ --runInBand",
     "doc": "jsdoc -c jsdoc.conf.json",
     "preshow:coverage": "npm run coverage",
     "show:coverage": "live-server coverage/lcov-report",
@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kiotobat/e2e.git"
+    "url": "git+https://github.com/kiotobat/trello_dnd.git"
   },
   "author": "Spartak",
   "license": "MIT",
