@@ -1,4 +1,4 @@
-image: Ubuntu1804  # образ для сборки
+image: Ubuntu2204  # образ для сборки
 
 stack: node 20  # окружение
 
@@ -8,16 +8,16 @@ branches:
 
 cache: node_modules  # кеширование
 
-install:
-  - npm install  # команда установки зависимостей
+install: # команда установки зависимостей
+  - yarn  
 
 build: off  # отключаем встроенную в appveyor систему сборки
 
-build_script:
-  - npm run build   # команда сборки
+build_script: # команда сборки
+  - yarn build   
 
-test_script:
-  - npm run lint  # скрипт тестирования
+test_script: # скрипт тестирования
+  - yarn lint && yarn test 
 
 deploy_script:  # скрипт развёртывания
   - git config --global credential.helper store
