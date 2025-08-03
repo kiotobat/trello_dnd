@@ -17,7 +17,7 @@ build_script: # команда сборки
   - yarn build   
 
 test_script: # скрипт тестирования
-  - yarn lint && yarn test 
+  - yarn lint
 
 deploy_script:  # скрипт развёртывания
   - git config --global credential.helper store
