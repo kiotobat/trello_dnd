@@ -10,6 +10,7 @@ export default class DnD {
     this.id = null;
     this.clone = null;
     this.sibling = null;
+    this.originalPosition = null;
 
     this.onMouseDown = this.onMouseDown.bind(this);
     this.onMouseMove = this.onMouseMove.bind(this);
@@ -31,6 +32,7 @@ export default class DnD {
     this.ghostEl.remove();
     document.body.style.cursor = 'auto';
     this.container.removeEventListener('mousemove', this.onMouseMove);
+    this.originalPosition = null;
   }
 
   onMouseUp(evt) {
@@ -65,6 +67,7 @@ export default class DnD {
     this.data.relocate(this.draggedEl, this.sibling);
     this.trello.redrawDOM();
     this.trello.data.saveState();
+    this.originalPosition = null;
   }
 
   onMouseMove(evt) {
@@ -86,13 +89,31 @@ export default class DnD {
     const elemBelow = document.elementFromPoint(evt.clientX, evt.clientY);
     this.ghostEl.hidden = false;
     if (!elemBelow) return;
+    
     const target = elemBelow.closest('.col__card');
+    const contentContainer = elemBelow.closest('.col__content');
+    
+    // Проверяем, что мы находимся в контейнере с карточками
+    if (!contentContainer) return;
+    
+    // Получаем все карточки в текущей колонке (исключая поднятую)
+    const cardsInColumn = Array.from(contentContainer.querySelectorAll('.col__card')).filter(card => card.dataset.id !== this.id);
+    
+    // Если в колонке нет других карточек, не показываем placeholder
+    if (cardsInColumn.length === 0) return;
+    
+    // Проверяем, не находимся ли мы над пустым местом, где была поднятая карточка
+    const originalPosition = this.getOriginalPosition();
+    if (originalPosition && this.isOverOriginalPosition(elemBelow, originalPosition)) {
+      return;
+    }
+    
     this.clone = this.draggedEl.cloneNode(true);
     this.clone.dataset.id = '000000';
 
     if (elemBelow.closest('.col__content')) {
       if (!elemBelow.closest('.col__content').hasChildNodes()) {
-        elemBelow.closest('.col__content').appendChild(this.clone);
+        elemBelow.closest('.col__content').append(this.clone);
       } else if (target && target.dataset.id !== this.id) {
         const { top } = elemBelow.getBoundingClientRect();
 
@@ -112,7 +133,7 @@ export default class DnD {
         const up50 = document.elementFromPoint(evt.clientX, evt.clientY - 50);
 
         if (down50.closest('.col__footer')) {
-          elemBelow.closest('.col__content').appendChild(this.clone);
+          elemBelow.closest('.col__content').append(this.clone);
         } else if (up50.closest('.col__header')) {
           elemBelow.closest('.col__content').prepend(this.clone);
         }
@@ -121,7 +142,7 @@ export default class DnD {
 
     if (elemBelow.closest('.col__footer')) {
       elemBelow.closest('.trello__col').querySelector('.col__content').scrollTop = elemBelow.closest('.trello__col').querySelector('.col__content').scrollHeight;
-      elemBelow.closest('.trello__col').querySelector('.col__content').appendChild(this.clone);
+      elemBelow.closest('.trello__col').querySelector('.col__content').append(this.clone);
     }
     if (elemBelow.closest('.col__header')) {
       elemBelow.closest('.trello__col').querySelector('.col__content').prepend(this.clone);
@@ -138,6 +159,10 @@ export default class DnD {
       document.body.style.cursor = 'grabbing';
       this.draggedEl = evt.target.closest('.col__card');
       this.id = this.draggedEl.dataset.id;
+      
+      // Сохраняем исходную позицию карточки
+      this.originalPosition = this.getOriginalPosition();
+      
       const coordsDrag = this.draggedEl.getBoundingClientRect();
       this.shiftX = evt.clientX - coordsDrag.left;
       this.shiftY = evt.clientY - coordsDrag.top;
@@ -145,11 +170,69 @@ export default class DnD {
       this.ghostEl.classList.add('dragged');
       this.ghostEl.dataset.id = '111111';
       this.draggedEl.classList.add('darkened');
-      document.querySelector('.trello__body').appendChild(this.ghostEl);
+      document.querySelector('.trello__body').append(this.ghostEl);
       this.ghostEl.style.width = `${this.draggedEl.offsetWidth}px`;
       this.ghostEl.style.left = `${coordsDrag.left}px`;
       this.ghostEl.style.top = `${coordsDrag.top}px`;
       this.container.addEventListener('mousemove', this.onMouseMove);
     }
+  }
+
+  getOriginalPosition() {
+    if (!this.draggedEl) return null;
+    
+    const container = this.draggedEl.closest('.col__content');
+    if (!container) return null;
+    
+    const cards = Array.from(container.querySelectorAll('.col__card'));
+    const index = cards.indexOf(this.draggedEl);
+    
+    return {
+      container: container,
+      index: index,
+      totalCards: cards.length
+    };
+  }
+
+  isOverOriginalPosition(elemBelow, originalPosition) {
+    if (!originalPosition || !elemBelow) return false;
+    
+    // Проверяем, что мы в той же колонке
+    const currentContainer = elemBelow.closest('.col__content');
+    if (currentContainer !== originalPosition.container) return false;
+    
+    // Если в колонке была только одна карточка, не показываем placeholder
+    if (originalPosition.totalCards === 1) return true;
+    
+    // Проверяем, находимся ли мы в пустом пространстве, где была карточка
+    const cards = Array.from(currentContainer.querySelectorAll('.col__card'));
+    const currentIndex = this.getCurrentPositionIndex(elemBelow, cards);
+    
+    // Если мы находимся в позиции, где была поднятая карточка, не показываем placeholder
+    return currentIndex === originalPosition.index;
+  }
+
+  getCurrentPositionIndex(elemBelow, cards) {
+    if (!elemBelow || cards.length === 0) return -1;
+    
+    const target = elemBelow.closest('.col__card');
+    if (target) {
+      return cards.indexOf(target);
+    }
+    
+    // Если мы не над карточкой, определяем позицию по координатам
+    const container = elemBelow.closest('.col__content');
+    if (!container) return -1;
+    
+    const mouseY = elemBelow.clientY || 0;
+    
+    for (let i = 0; i < cards.length; i++) {
+      const cardRect = cards[i].getBoundingClientRect();
+      if (mouseY < cardRect.top + cardRect.height / 2) {
+        return i;
+      }
+    }
+    
+    return cards.length; // В конец
   }
 }
